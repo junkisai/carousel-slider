@@ -1,0 +1,16 @@
+{
+  "name": "carousel-slider",
+  "main": "index.html",
+  "scripts": {
+    "start": "polymer serve --open"
+  },
+  "dependencies": {
+    "@polymer/lit-element": "^0.7.1",
+    "@polymer/polymer": "^3.0.0",
+    "lit-html": "^1.1.2"
+  },
+  "devDependencies": {
+    "@polymer/iron-demo-helpers": "^3.1.0",
+    "@webcomponents/webcomponentsjs": "^2.0.0"
+  }
+}
