@@ -2,7 +2,7 @@
   "name": "carousel-slider",
   "main": "index.html",
   "scripts": {
-    "start": "polymer serve --open"
+    "start": "npx polymer serve --open"
   },
   "dependencies": {
     "@polymer/lit-element": "^0.7.1",
@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@polymer/iron-demo-helpers": "^3.1.0",
-    "@webcomponents/webcomponentsjs": "^2.0.0"
+    "@webcomponents/webcomponentsjs": "^2.0.0",
+    "polymer-cli": "^1.9.11"
   }
 }
