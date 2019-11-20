@@ -1,50 +1,178 @@
-import { LitElement, html } from '@polymer/lit-element';
+import { LitElement, html, css } from '@polymer/lit-element';
+import { addListener, removeListener } from '@polymer/polymer/lib/utils/gestures';
+import { GestureEventListeners } from '@polymer/polymer/lib/mixins/gesture-event-listeners.js';
 
-class CarouselSlider extends LitElement {
+const emptyHandler = () => {};
+
+/**
+ * 求められる機能
+ * - スワイプイベントでアイテムをスライド
+ * - ループするカルーセル
+ * 前提条件
+ * - 内包するcarousel-slider-itemは等幅
+ */
+class CarouselSlider extends GestureEventListeners(LitElement) {
   static get properties() {
-    return {};
+    return {
+      /**
+       * track状態
+       * @see https://polymer-library.polymer-project.org/3.0/docs/devguide/gesture-events#gesture-event-types
+       */
+      trackStatus: { type: String, reflect: true, attribute: 'track-status' },
+      /**
+       * 現在の表示アイテムidx
+       */
+      idx: { type: Number, reflect: true },
+      /**
+       * Carouselのスクロール座標
+       */
+      __dx: { type: Number },
+      /**
+       * sliderさせる子コンポーネント群
+       */
+      __items: { type: Array },
+      /**
+       * ループを表現するために__itemsを拡張
+       */
+      __virtualItems: { type: Array },
+    };
   }
 
   constructor() {
     super();
+    this.trackStatus = 'end';
+    this.idx = 0;
+    this.__dx = 0;
+    this.__items = [];
+  }
+
+  connectedCallback(...args) {
+    super.connectedCallback(...args);
+    addListener(this, 'track', emptyHandler);
+  }
+
+  disconnectedCallback(...args) {
+    super.disconnectedCallback(...args);
+    removeListener(this, 'track', emptyHandler);
+  }
+
+  firstUpdated() {
+    this.__items = this.shadowRoot
+      .querySelector('slot')
+      .assignedNodes()
+      .filter(elm => elm.tagName === 'CAROUSEL-SLIDER-ITEM');
+    this.setVirtualItems();
+  }
+
+  setVirtualItems() {
+    const newlist = [...this.__items, ...this.__items, ...this.__items];
+    const list = this.shadowRoot.querySelector('.list');
+    // <slot>タグ除去
+    list.innerHTML = '';
+    for (const dom of newlist) {
+      const clone = dom.cloneNode(true);
+      list.appendChild(clone);
+    }
+    this.__virtualItems = list.childNodes;
+    this.idx = this.__items.length;
+    this.__move(this.idx);
   }
 
   render() {
     return html`
       <style>
-        .slider {
-          width: 500px;
-          height: 200px;
-          overflow-y: hidden;
+        .container {
+          overflow: hidden;
         }
 
-        .slider .slideSet {
+        .container .list {
           display: flex;
-          width: 2500px;
         }
 
-        .slider .slide {
-          width: 498px;
-          height: 198px;
-          border: solid 1px #f00;
+        carousel-slider-item {
+          margin: 8px;
+        }
+
+        @media screen and (max-width: 480px) {
+          carousel-slider-item {
+            width: calc(100% - 32px);
+          }
+        }
+        @media screen and (min-width: 481px) {
+          carousel-slider-item {
+            width: 464px;
+          }
         }
       </style>
-      <div class="slider">
-        <div class="slideSet" @track="${this.handleFlick}">
-          <div class="slide">slide1</div>
-          <div class="slide">slide2</div>
-          <div class="slide">slide3</div>
-          <div class="slide">slide4</div>
-          <div class="slide">slide5</div>
+      <div
+        class="container"
+        @track="${this.handleTrack}"
+      >
+        <div class="list" style="transform: translateX(${this.__dx}px)">
+          <slot></slot>
         </div>
       </div>
     `;
   }
 
-  handleFlick(e) {
-    console.log(e);
+  /**
+   * 
+   * @param {CutomEvent} e 
+   */
+  handleTrack(e) {
+    const { state, ddx } = e.detail;
+    if (state === 'start') {
+      return;
+    }
+    if (state === 'track') {
+      this.__dx = this.__dx + ddx;
+    }
+    if (state === 'end') {
+      const elm = this.shadowRoot.querySelector('.container');
+      const domRect = elm.getBoundingClientRect();
+      console.log(domRect);
+      const baseCenterX = domRect.x + domRect.width / 2;
+      let targetIdx = 0;
+      let diffX = Number.MAX_VALUE;
+      this.__virtualItems.forEach((elm, idx) => {
+        const rect = elm.getBoundingClientRect();
+        const centerX = rect.x + rect.width / 2;
+        const _diffX = Math.abs(baseCenterX - centerX);
+        if (_diffX < diffX) {
+          diffX = _diffX;
+          targetIdx = idx;
+        }
+      });
+      if (targetIdx < this.__items.length) {
+        targetIdx += this.__items.length;
+      } else if (targetIdx > this.__items.length * 2) {
+        targetIdx -= this.__items.length
+      }
+      this.idx = targetIdx;
+      this.__move(this.idx);
+    }
   }
 
+  /**
+   * carouselの座標をindexから計算して更新
+   * @param {number} targetIdx
+   * @private
+   */
+  __move(targetIdx) {
+    const $itemElms = this.__virtualItems;
+    if ($itemElms.length < 2) {
+      return;
+    }
+    console.log($itemElms[0].getBoundingClientRect());
+    const width = $itemElms[0].getBoundingClientRect().width;
+    console.log(width);
+    const margin =
+      $itemElms[1].getBoundingClientRect().x -
+      ($itemElms[0].getBoundingClientRect().x +
+        $itemElms[0].getBoundingClientRect().width);
+    console.log(margin);
+    this.__dx = (width + margin) * targetIdx * -1;
+  }
 }
 
 window.customElements.define('carousel-slider', CarouselSlider);
