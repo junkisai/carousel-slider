@@ -1,6 +1,13 @@
 # \<carousel-slider\>
 
+## 要件
 
+- スワイプ操作可能に
+- カルーセルはループするように
+
+## demo
+
+[![Image from Gyazo](https://i.gyazo.com/94805fc0a7fa8eec9401407dcd68e1f5.gif)](https://gyazo.com/94805fc0a7fa8eec9401407dcd68e1f5)
 
 ## Install the Polymer-CLI
 
