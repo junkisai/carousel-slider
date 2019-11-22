@@ -1,4 +1,4 @@
-import { LitElement, html, css } from '@polymer/lit-element';
+import { LitElement, html } from '@polymer/lit-element';
 import { addListener, removeListener } from '@polymer/polymer/lib/utils/gestures';
 import { GestureEventListeners } from '@polymer/polymer/lib/mixins/gesture-event-listeners.js';
 
@@ -14,15 +14,11 @@ const emptyHandler = () => {};
 class CarouselSlider extends GestureEventListeners(LitElement) {
   static get properties() {
     return {
-      /**
-       * track状態
-       * @see https://polymer-library.polymer-project.org/3.0/docs/devguide/gesture-events#gesture-event-types
-       */
-      trackStatus: { type: String, reflect: true, attribute: 'track-status' },
+      loop: { type: Boolean, reflect: true },
       /**
        * 現在の表示アイテムidx
        */
-      idx: { type: Number, reflect: true },
+      __idx: { type: Number },
       /**
        * Carouselのスクロール座標
        */
@@ -40,8 +36,8 @@ class CarouselSlider extends GestureEventListeners(LitElement) {
 
   constructor() {
     super();
-    this.trackStatus = 'end';
-    this.idx = 0;
+    this.loop = false;
+    this.__idx = 0;
     this.__dx = 0;
     this.__items = [];
   }
@@ -65,7 +61,7 @@ class CarouselSlider extends GestureEventListeners(LitElement) {
   }
 
   setVirtualItems() {
-    const newlist = [...this.__items, ...this.__items, ...this.__items];
+    const newlist = this.loop ? [...this.__items.slice(this.__items.length - 1), ...this.__items, ...this.__items.slice(0, 1)] : [...this.__items];
     const list = this.shadowRoot.querySelector('.list');
     // <slot>タグ除去
     list.innerHTML = '';
@@ -74,8 +70,11 @@ class CarouselSlider extends GestureEventListeners(LitElement) {
       list.appendChild(clone);
     }
     this.__virtualItems = list.childNodes;
-    this.idx = this.__items.length;
-    this.__move(this.idx);
+    console.log(this.__virtualItems[0].getBoundingClientRect());
+    if (this.loop) {
+      this.__idx = this.__items.length;
+      this.__move(this.__idx);
+    }
   }
 
   render() {
@@ -95,9 +94,10 @@ class CarouselSlider extends GestureEventListeners(LitElement) {
 
         @media screen and (max-width: 480px) {
           carousel-slider-item {
-            width: calc(100% - 32px);
+            width: calc(100% - 16px);
           }
         }
+
         @media screen and (min-width: 481px) {
           carousel-slider-item {
             width: 464px;
@@ -117,39 +117,42 @@ class CarouselSlider extends GestureEventListeners(LitElement) {
 
   /**
    * 
-   * @param {CutomEvent} e 
+   * @param {CustomEvent} e 
    */
   handleTrack(e) {
     const { state, ddx } = e.detail;
-    if (state === 'start') {
-      return;
-    }
-    if (state === 'track') {
-      this.__dx = this.__dx + ddx;
-    }
-    if (state === 'end') {
-      const elm = this.shadowRoot.querySelector('.container');
-      const domRect = elm.getBoundingClientRect();
-      console.log(domRect);
-      const baseCenterX = domRect.x + domRect.width / 2;
-      let targetIdx = 0;
-      let diffX = Number.MAX_VALUE;
-      this.__virtualItems.forEach((elm, idx) => {
-        const rect = elm.getBoundingClientRect();
-        const centerX = rect.x + rect.width / 2;
-        const _diffX = Math.abs(baseCenterX - centerX);
-        if (_diffX < diffX) {
-          diffX = _diffX;
-          targetIdx = idx;
+    switch (state) {
+      case 'start':
+        break;
+      case 'track':
+        this.__dx = this.__dx + ddx;
+        break;
+      case 'end':
+        const elm = this.shadowRoot.querySelector('.container');
+        const domRect = elm.getBoundingClientRect();
+        console.log(domRect);
+        const baseCenterX = domRect.x + domRect.width / 2;
+        let targetIdx = 0;
+        let diffX = Number.MAX_VALUE;
+        this.__virtualItems.forEach((elm, idx) => {
+          const rect = elm.getBoundingClientRect();
+          const centerX = rect.x + rect.width / 2;
+          const _diffX = Math.abs(baseCenterX - centerX);
+          if (_diffX < diffX) {
+            diffX = _diffX;
+            targetIdx = idx;
+          }
+        });
+        if (this.loop) {
+          if (targetIdx < 1) {
+            targetIdx += this.__items.length;
+          } else if (targetIdx > this.__items.length) {
+            targetIdx -= this.__items.length
+          }
         }
-      });
-      if (targetIdx < this.__items.length) {
-        targetIdx += this.__items.length;
-      } else if (targetIdx > this.__items.length * 2) {
-        targetIdx -= this.__items.length
-      }
-      this.idx = targetIdx;
-      this.__move(this.idx);
+        this.__idx = targetIdx;
+        this.__move(this.__idx);
+        break;
     }
   }
 
@@ -163,6 +166,7 @@ class CarouselSlider extends GestureEventListeners(LitElement) {
     if ($itemElms.length < 2) {
       return;
     }
+    console.log($itemElms[0]);
     console.log($itemElms[0].getBoundingClientRect());
     const width = $itemElms[0].getBoundingClientRect().width;
     console.log(width);
@@ -171,6 +175,7 @@ class CarouselSlider extends GestureEventListeners(LitElement) {
       ($itemElms[0].getBoundingClientRect().x +
         $itemElms[0].getBoundingClientRect().width);
     console.log(margin);
+    console.log(targetIdx);
     this.__dx = (width + margin) * targetIdx * -1;
   }
 }
